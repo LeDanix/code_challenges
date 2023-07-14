@@ -1,8 +1,4 @@
 package src;
-import src.Cell;
-import src.CellState;
-import src.Coord;
-import java.lang.Math;
 
 public class Matrix {
     private Cell [][] matrix;

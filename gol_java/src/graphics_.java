@@ -1,5 +1,4 @@
 package src;
-import src.Matrix;
 import javax.swing.*;
 import java.awt.*;
 

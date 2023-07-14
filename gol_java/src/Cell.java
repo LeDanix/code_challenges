@@ -1,5 +1,4 @@
 package src;
-import src.CellState;
 
 public class Cell {
     private byte c_state;
