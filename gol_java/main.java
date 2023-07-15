@@ -4,12 +4,8 @@
 // Powered by JDK 20
 ////////////////////////////////////////////
 import src.graphics_;
-
-import javax.swing.SwingUtilities;
-
 import src.Matrix;
 import src.utils;
-
 
 class GameOfLife{
     private static byte ROWS = 127;

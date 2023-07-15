@@ -1,4 +1,5 @@
 package src;
+
 public class Coord {
     private byte x = 0;
     private byte y = 0;
