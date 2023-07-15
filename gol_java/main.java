@@ -8,31 +8,22 @@ import src.graphics_;
 import javax.swing.SwingUtilities;
 
 import src.Matrix;
+import src.utils;
 
 
 class GameOfLife{
-    private static byte ROWS = 100;
-    private static byte COLUMNS = 50;
-    private static byte MAX_ITERATIONS = 100;
-
-    private static void wait(int millis){
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
+    private static byte ROWS = 127;
+    private static byte COLUMNS = 127;
+    // private static int MAX_ITERATIONS = 500;
 
     public static void main(String[] args){
-        byte iter = 0;
         Matrix matrix = new Matrix(ROWS, COLUMNS);
-        graphics_ ghaphics = new graphics_(matrix);
-        ghaphics.setVisible(true);
-        while (iter++ < MAX_ITERATIONS){
+        graphics_ graphics = new graphics_(matrix);
+        
+        while (true){
             matrix.update();
-            ghaphics = new graphics_(matrix);
-            ghaphics.setVisible(true);
-            wait(50);
+            graphics.repaint();
+            utils.wait(50);
         }
     }
 }
