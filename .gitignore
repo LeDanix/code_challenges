@@ -10,6 +10,9 @@
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
+# Virtual environements Python
+venv
+
 # Package Files #
 *.jar
 *.war
