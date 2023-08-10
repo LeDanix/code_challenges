@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib as plt
 
 class Coord:
-    X: bytes = 0
-    Y: bytes = 0
+    _X: bytes
+    _Y: bytes
 
     def __init__(self, X: int, Y: int):
         self.coord = (X, Y)
@@ -18,14 +18,21 @@ class Coord:
     def Y(self):
         return self.coord[1]
 
+    def into_list(self, coord_list: list):
+        for coord in coord_list:
+            if coord.X == self.X and coord.Y == self.Y:
+                return True
+        return False
+
 class Cell:
     _g: int
     _f: int
     _coord: Coord
-    last: Coord
+    _last: Coord
+    _visited: bool
 
     def __init__(self, coord: Coord, g: int, f: int, last: Coord, visited: bool = False):
-        self._coord, self._g, self._f, self._last, self.visited = coord, g, f, last, visited
+        self._coord, self._g, self._f, self._last, self._visited = coord, g, f, last, visited
     
     @property
     def coord(self):
@@ -55,74 +62,84 @@ class Cell:
     def last(self, last):
         self._last = last
 
+    @property
+    def visited(self):
+        self._visited
+    
+    @visited.setter
+    def visited(self, visited):
+        self._visited = visited
+
         
 class Map:
     _rows: int
     _colums: int
     _start_cell: Coord
     _final_cell: Coord
-    _map: list
-    _non_visited: list
-    _visited: list
+
+    OPEN: int = 0
+    WALL: int = 1
+    WEIGHTS: list = [0.8, 0.2]
 
     def __init__(self, rows: int, colums: int, start_cell: Coord, final_cell: Coord):
         self._rows = rows
         self._colums = colums
         self._start_cell = start_cell
         self._final_cell = final_cell
-        # 1 -> Open way, 2 -> Wall
-        self._map = np.array([[random.choice([0, 1]) if Coord(i, j) not in [start_cell, final_cell] else 0 for j in range(colums)] for i in range(rows)])
-        self.visited = np.array(np.array() * rows) * colums
+        # 0 -> Open way, 1 -> Wall
+        self._wall_map = np.array([[random.choices([0, 1], weights=Map.WEIGHTS) if Coord(i, j).into_list([start_cell, final_cell]) else 0 for j in range(colums)] for i in range(rows)])
+        self._map = np.empty((rows, colums), dtype=Cell)
         for i in range(rows):
             for j in range(colums):
-                self._visited[i][j] = Cell(Coord(i, j), 9999, 9999, None)
+                self._map[i, j] = Cell(coord=Coord(i, j), g=9999, f=9999, last=None, visited=False)
 
     @property
-    def s_cell(self) -> Cell:
+    def s_cell(self) -> Coord:
         return self._start_cell
     
     @property
-    def f_cell(self) -> Cell:
+    def f_cell(self) -> Coord:
         return self._final_cell
     
     @property
-    def map(self) -> np.array:
-        return self._map
+    def wall_map(self):
+        return self._wall_map
 
-    def get_cell_state(self, coord: Coord) -> int:
-        return self._map[coord.X][coord.Y]
+    def is_wall(self, coord: Coord) -> int:
+        return self._wall_map[coord.X, coord.Y] == Map.WALL
 
     @property
-    def visited(self) -> np.array(Cell):
-        return self._visited
+    def map(self):
+        return self._map
     
     def set_cell_vis(self, cell: Cell, coord: Coord):
-        self._non_visited[coord.X][coord.Y] = cell
+        self._map[coord.X, coord.Y] = cell
 
     def get_cell_vis(self, coord: Coord) -> Cell:
-        return self._non_visited[coord.X][coord.Y]
+        return self._map[coord.X, coord.Y]
     
     @staticmethod
-    def euc_dist(coord_1: Coord, coord_2: Coord) ->float:
+    def _euc_dist(coord_1: Coord, coord_2: Coord) ->float:
         return math.hypot(coord_1.X - coord_2.X, coord_1.Y - coord_2.Y)
 
     @staticmethod
-    def f_calc(act_cell: Cell, f_cell: Cell) -> float:
+    def _f_calc(act_cell: Cell, f_cell: Coord) -> float:
         # Heuristic calculation f = g + h
-        return act_cell.g + Map.euc_dist(act_cell.coord, f_cell.coord)
+        return act_cell.g + Map._euc_dist(act_cell.coord, f_cell)
 
     def less_f_neights(self, coord: Coord) -> Cell:
         aux = [(-1, 1), (0, 1), (1, 1), (-1, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]
         less_f_cell: Cell
         less_f = 9999
         for mov in aux:  # Iterate over neight to the actual Cell
-            if self._rows < coord.X + mov[0] or coord.X + mov[0] < 0 or self._colums < coord.Y + mov[1] or coord.Y + mov[1] < 0:  # Cell exists
+            if (self._rows < coord.X + mov[0]) or (coord.X + mov[0] < 0) or \
+               (self._colums < coord.Y + mov[1]) or (coord.Y + mov[1] < 0):  # Cell exists
                 continue
             neight_coord = Coord(coord.X + mov[0], coord.Y + mov[1])
             selected_cell = self.get_cell_vis(neight_coord)
             if selected_cell.visited:  # If cell already visited, do not take into account
                 continue
-            if selected_cell.f < less_f and self.get_cell_state(neight_coord): # If f is less than the previous and cell is not a wall
+            if selected_cell.f < less_f and not self.is_wall(neight_coord): # If f is less than the previous and cell is not a wall
                 less_f = selected_cell.f
                 less_f_cell = selected_cell
         return less_f_cell
@@ -137,13 +154,13 @@ class Map:
             if selected_cell.visited:  # If cell already visited, do not recalculate
                 continue
             # Update neight values
-            cost_from_init = np.sum([cell.visited == True for cell in self.visited.flatten()])
-            selected_cell.g =  cost_from_init if cost_from_init < selected_cell.g else selected_cell.g
-            selected_cell.f = Map.f_calc(selected_cell, self.f_cell)
+            cost_from_init = np.sum([self.get_cell_vis(Coord(x, y)).visited == True for x, y in np.ndindex(self.map.shape)])
+            selected_cell.g = cost_from_init if cost_from_init < selected_cell.g else selected_cell.g
+            selected_cell.f = Map._f_calc(selected_cell, self.f_cell)
             selected_cell.last = self.get_cell_vis(coord)
 
     def print_matrix(self):
-        plt.imshow(self._map.astype(float), cmap='Greys', interpolation='nearest')
+        plt.imshow(self._wall_map.astype(float), cmap='Greys', interpolation='nearest')
         plt.draw()
         plt.pause(0.00001)
         plt.clf()
