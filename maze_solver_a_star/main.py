@@ -190,6 +190,11 @@ def resolve_a_star(map: Map):
         act_cell_coord = less_f_cell.coord
 
 def main():
+    # TODO
+    # Organize classes into different folders
+    # Document all code
+    # Fix Bugs - Ufffff
+    # PR and README.md
     s_cell, f_cell = Coord(0, 0), Coord(39, 39)
     map = Map(40, 40, s_cell, f_cell)
     resolve_a_star(map)
