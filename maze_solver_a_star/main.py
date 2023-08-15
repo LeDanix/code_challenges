@@ -1,7 +1,8 @@
 import random
 import math
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 class Coord:
     _X: bytes
@@ -24,15 +25,16 @@ class Coord:
                 return True
         return False
 
+
 class Cell:
-    _g: int
-    _f: int
     _coord: Coord
-    _last: Coord
-    _visited: bool
+    _g_value: int
+    _f_value: int
+    _last_coord: Coord
+    _visited_status: bool
 
     def __init__(self, coord: Coord, g: int, f: int, last: Coord, visited: bool = False):
-        self._coord, self._g, self._f, self._last, self._visited = coord, g, f, last, visited
+        self._coord, self._g_value, self._f_value, self._last_coord, self._visited_status = coord, g, f, last, visited
     
     @property
     def coord(self):
@@ -40,58 +42,61 @@ class Cell:
     
     @property
     def g(self):
-        return self._g
+        return self._g_value
     
     @g.setter
     def g(self, g):
-        self._g = g
+        self._g_value = g
 
     @property
     def f(self):
-        return self._f
+        return self._f_value
     
     @f.setter
     def f(self, f):
-        self._f = f
+        self._f_value = f
 
     @property
     def last(self):
-        self._last
+        return self._last_coord
     
     @last.setter
     def last(self, last):
-        self._last = last
+        self._last_coord = last
 
     @property
     def visited(self):
-        self._visited
+        return self._visited_status
     
     @visited.setter
     def visited(self, visited):
-        self._visited = visited
+        self._visited_status = visited
+     
 
-        
 class Map:
     _rows: int
     _colums: int
     _start_cell: Coord
     _final_cell: Coord
 
+
     OPEN: int = 0
     WALL: int = 1
     WEIGHTS: list = [0.8, 0.2]
+    COLOR_MAP = ['white', 'black', 'red']
 
     def __init__(self, rows: int, colums: int, start_cell: Coord, final_cell: Coord):
         self._rows = rows
         self._colums = colums
         self._start_cell = start_cell
         self._final_cell = final_cell
-        # 0 -> Open way, 1 -> Wall
-        self._wall_map = np.array([[random.choices([0, 1], weights=Map.WEIGHTS) if Coord(i, j).into_list([start_cell, final_cell]) else 0 for j in range(colums)] for i in range(rows)])
-        self._map = np.empty((rows, colums), dtype=Cell)
+        self._map = np.empty(shape=(rows, colums), dtype=Cell)
+        self._wall_map = np.empty(shape=(rows, colums), dtype=int)
+        print(self._wall_map)
         for i in range(rows):
             for j in range(colums):
-                self._map[i, j] = Cell(coord=Coord(i, j), g=9999, f=9999, last=None, visited=False)
+                self._map[i][j] = Cell(coord=Coord(0, 0), g=9999, f=9999, last=None, visited=False)
+                self._wall_map[i][j] = random.choices([0, 1], weights=Map.WEIGHTS)[0] if not Coord(i, j).into_list([start_cell, final_cell]) else 0
 
     @property
     def s_cell(self) -> Coord:
@@ -113,13 +118,13 @@ class Map:
         return self._map
     
     def set_cell_vis(self, cell: Cell, coord: Coord):
-        self._map[coord.X, coord.Y] = cell
+        self._map[coord.X][coord.Y] = cell
 
     def get_cell_vis(self, coord: Coord) -> Cell:
         return self._map[coord.X, coord.Y]
     
     @staticmethod
-    def _euc_dist(coord_1: Coord, coord_2: Coord) ->float:
+    def _euc_dist(coord_1: Coord, coord_2: Coord) -> float:
         return math.hypot(coord_1.X - coord_2.X, coord_1.Y - coord_2.Y)
 
     @staticmethod
@@ -160,9 +165,12 @@ class Map:
             selected_cell.last = self.get_cell_vis(coord)
 
     def print_matrix(self):
-        plt.imshow(self._wall_map.astype(float), cmap='Greys', interpolation='nearest')
-        plt.draw()
-        plt.pause(0.00001)
+        aux_map = np.array(self._wall_map) + np.array([[2 if cell.visited else 0 for cell in row] for row in self._map])
+        print(aux_map)
+        plt.imshow(aux_map, cmap=ListedColormap(Map.COLOR_MAP, [0, 1, 2], N=3))
+        plt.show()
+        #plt.pause(0.00001)
+        plt.pause(1)
         plt.clf()
 
 def resolve_a_star(map: Map):
@@ -195,6 +203,7 @@ def main():
     s_cell = Coord(0, 0)
     f_cell = Coord(40, 40)
     map = Map(40, 40, s_cell, f_cell)
+    map.print_matrix()
 
 
 if __name__ == '__main__':
