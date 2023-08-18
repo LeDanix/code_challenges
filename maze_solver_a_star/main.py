@@ -82,20 +82,20 @@ class Map:
     OPEN: int = 0
     WALL: int = 1
     WEIGHTS: list = [0.8, 0.2]
-    DIRECTIONS = [(-1, 1), (0, 1), (1, 1), (-1, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]  # Diagonal movement
-    # DIRECTIONS = [(0, 1), (-1, 0), (1, 0), (0, -1)]  # Non diagonal movement
-    COLOR_MAP = ListedColormap(['white', 'black', 'red'], [0, 1, 2], N=3)
+    # DIRECTIONS = [(-1, 1), (0, 1), (1, 1), (-1, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]  # Diagonal movement
+    DIRECTIONS = [(0, 1), (-1, 0), (1, 0), (0, -1)]  # Non diagonal movement
+    COLOR_MAP = ListedColormap(['white', 'black', 'red', 'green'], [0, 1, 2, 3], N=4)
 
     def __init__(self, rows: int, colums: int, start_cell: Coord, final_cell: Coord):
         self._rows = rows
         self._colums = colums
         self._start_cell = start_cell
         self._final_cell = final_cell
-        self._map = np.empty(shape=(self._rows, self._colums), dtype=Cell)
+        self._cell_map = np.empty(shape=(self._rows, self._colums), dtype=Cell)
         self._wall_map = np.empty(shape=(self._rows, self._colums), dtype=int)
         for i in range(self._rows):
             for j in range(self._colums):
-                self._map[i][j] = Cell(coord=Coord(i, j), g=9999, f=9999, last=None, visited=False)
+                self._cell_map[i][j] = Cell(coord=Coord(i, j), g=9999, f=9999, last=None, visited=False)
                 self._wall_map[i][j] = random.choices([0, 1], weights=Map.WEIGHTS)[0] if not Coord(i, j).into_list([start_cell, final_cell]) else 0
 
     @property
@@ -115,37 +115,41 @@ class Map:
 
     @property
     def map(self):
-        return self._map
+        return self._cell_map
     
     def set_cell(self, cell: Cell, coord: Coord):
-        self._map[coord.X][coord.Y] = cell
+        self._cell_map[coord.X][coord.Y] = cell
 
     def get_cell(self, coord: Coord) -> Cell:
-        return self._map[coord.X][coord.Y]
+        return self._cell_map[coord.X][coord.Y]
     
+    """@staticmethod
+    def euc_dist(coord_1: Coord, coord_2: Coord) -> float:
+        return math.sqrt((coord_1.X - coord_2.X)**2 + (coord_1.Y - coord_2.Y)**2)"""
+
     @staticmethod
     def euc_dist(coord_1: Coord, coord_2: Coord) -> float:
-        return math.hypot(coord_1.X - coord_2.X, coord_1.Y - coord_2.Y)
+        return (coord_1.X - coord_2.X) + (coord_1.Y - coord_2.Y)
 
     @staticmethod
-    def _f_calc(act_cell: Cell, f_cell: Coord) -> float:
+    def _f_calc(act_cell: Coord, f_cell: Coord, g_value: float) -> float:
         # Heuristic calculation f = g + h
-        return act_cell.g + Map.euc_dist(act_cell.coord, f_cell)
+        return g_value + Map.euc_dist(f_cell, act_cell)
 
-    def less_f_neights(self, coord: Coord) -> Cell:
-        less_f_cell: Cell
+    def less_f_neights(self) -> Cell:
         less_f = 9999
-        for mov in Map.DIRECTIONS:  # Iterate over neight to the actual Cell
-            if (self._rows - 1 < coord.X + mov[0]) or (coord.X + mov[0] < 0) or \
-               (self._colums - 1 < coord.Y + mov[1]) or (coord.Y + mov[1] < 0):  # Cell exists
+        less_f_cell = None
+        for i, j in np.ndindex(self.map.shape):
+            selected_cell = self.get_cell(Coord(i, j))
+            if selected_cell.visited:  # If cell already visited, ignore
                 continue
-            neight_coord = Coord(coord.X + mov[0], coord.Y + mov[1])
-            selected_cell = self.get_cell(neight_coord)
-            """if selected_cell.visited:  # If cell already visited, do not take into account
-                continue"""
-            if selected_cell.f < less_f and not self.is_wall(neight_coord): # If f is less than the previous and cell is not a wall
+            if selected_cell.f <= less_f and not self.is_wall(selected_cell.coord): # If f is less than the previous and cell is not a wall
                 less_f = selected_cell.f
                 less_f_cell = selected_cell
+        if less_f_cell is None:
+            import sys
+            print("No maze possible")
+            sys.exit()
         return less_f_cell
 
     def recalculate_neight_params(self, coord: Coord):
@@ -154,40 +158,79 @@ class Map:
                (self._colums - 1 < coord.Y + mov[1]) or (coord.Y + mov[1] < 0):  # Cell exists
                 continue
             selected_cell = self.get_cell(Coord(coord.X + mov[0], coord.Y + mov[1]))
-            """if selected_cell.visited:  # If cell already visited, do not recalculate
-                continue"""
+            if self.is_wall(selected_cell.coord):
+                continue
             # Update neight values
-            cost_from_init = np.sum([self.get_cell(Coord(x, y)).visited == True for x, y in np.ndindex(self.map.shape)])
-            selected_cell.g = cost_from_init if cost_from_init < selected_cell.g else selected_cell.g
-            selected_cell.f = Map._f_calc(selected_cell, self.f_cell)
-            selected_cell.last = coord
-
-    def print_matrix(self):
-        aux_map = np.array(self._wall_map) + np.array([[2 if cell.visited else 0 for cell in row] for row in self._map])
+            g = self.get_cell(coord).g + 1
+            f = Map._f_calc(selected_cell.coord, self.f_cell, g)
+            if f < selected_cell.f:
+                selected_cell.g = g
+                selected_cell.f = f
+                selected_cell.last = coord
+    
+    def backtracking(self):
+        cell = self.get_cell(self.s_cell)
+        path = [cell.coord]
+        current_f = cell.f
+        while not cell.coord.into_list([self.f_cell]):
+            for mov in Map.DIRECTIONS:
+                if (self._rows - 1 < cell.coord.X + mov[0]) or (cell.coord.X + mov[0] < 0) or \
+                   (self._colums - 1 < cell.coord.Y + mov[1]) or (cell.coord.Y + mov[1] < 0):  # Cell exists
+                    continue
+                neight_cell = self.get_cell(Coord(cell.coord.X + mov[1], cell.coord.Y + mov[0]))
+                if neight_cell.f < current_f and not self.is_wall(neight_cell.coord):
+                    current_f = neight_cell.f
+                    current_neight_cell = neight_cell
+            cell = current_neight_cell
+            path.append(cell.coord)
+        return np.array([path[i].coord for i in range(len(path))])
+            
+    def print_matrix(self, path_map: np.ndarray):
+        aux_map = np.array(self._wall_map) + np.array([[2 if cell.visited else 0 for cell in row] for row in self._cell_map]) + path_map
         plt.imshow(aux_map, cmap=Map.COLOR_MAP)
         plt.draw()
         plt.pause(0.2)
-        plt.clf()
-
+    
+    def print_f_matrix(self):
+        """DEBUG"""
+        a = np.zeros((5, 5), dtype=float)
+        for i in range(self.map.shape[0]):
+            for j in range(self.map.shape[1]):
+                a[i][j] = self.get_cell(Coord(i, j)).f
+    
 
 def resolve_a_star(map: Map):
+    path_map = np.zeros(shape=(map.wall_map.shape[0], map.wall_map.shape[1]), dtype=int)
     # Initialize visited list first cell
     map.set_cell(
         cell=Cell(
             coord=map.s_cell,
             g=0,
-            f=Map.euc_dist(map.s_cell, map.f_cell),
+            f=Map.euc_dist(map.f_cell, map.s_cell),
             last=None,
             visited=True),
         coord=map.s_cell
         )
+    
+    # Fill the map
     act_cell_coord = map.s_cell
     while not map.get_cell(map.f_cell).visited:  # While the f_cell was not visited -> Continue
         map.recalculate_neight_params(act_cell_coord)
-        less_f_cell = map.less_f_neights(act_cell_coord)
+        less_f_cell = map.less_f_neights()
         map.get_cell(less_f_cell.coord).visited = True
-        map.print_matrix()
+        map.print_matrix(path_map)
         act_cell_coord = less_f_cell.coord
+
+    # Backtracking
+    path = map.backtracking()
+
+    # DEBUG
+    for i in range(len(path)):
+        print(f"{path[i]}")
+    
+    # Print path
+    path_map[path[:, 0], path[:, 1]] = 1
+    map.print_matrix(path_map)
 
 def main():
     # TODO
@@ -195,8 +238,8 @@ def main():
     # Document all code
     # Fix Bugs - Ufffff
     # PR and README.md
-    s_cell, f_cell = Coord(0, 0), Coord(39, 39)
-    map = Map(40, 40, s_cell, f_cell)
+    rows, columns = 5, 5
+    map = Map(rows, columns, Coord(0, 0), Coord(rows - 1, columns - 1))
     resolve_a_star(map)
 
 
