@@ -42,13 +42,11 @@ def resolve_a_star(map: Map):
     map.print_matrix(path_map, Map.COLOR_MAP_2)
 
 def main():
-    # TODO
-    # Fix Bugs
-    # PR and README.md
-    rows, columns = 15, 15
-    map = Map(rows, columns, Coord(0, 0), Coord(rows - 1, columns - 1))
+    rows, columns = 7, 7
+    start_coord, final_coord = Coord(0, 0), Coord(rows - 1, columns - 1)
+    map = Map(rows, columns, start_coord, final_coord)
     resolve_a_star(map)
-    input("")
+    input("Press any key to exit")
 
 
 if __name__ == '__main__':

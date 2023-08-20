@@ -14,9 +14,10 @@ class Map:
     _start_cell: Coord
     _final_cell: Coord
 
+    BIG_NUMBER = 9999
     OPEN: int = 0
     WALL: int = 1
-    WEIGHTS: list = [0.7, 0.3]
+    WEIGHTS: list = [0.6, 0.4]  # % empty, % wall
     DIRECTIONS = [(-1, 1), (0, 1), (1, 1), (-1, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]  # Diagonal movement
     # DIRECTIONS = [(-1, 0), (0, -1), (1, 0), (0, 1)]  # Non diagonal movement
     COLOR_MAP_1 = ListedColormap(['white', 'black', 'red'], [0, 1, 2], N=3)
@@ -31,7 +32,7 @@ class Map:
         self._wall_map = np.empty(shape=(self._rows, self._colums), dtype=int)
         for i in range(self._rows):
             for j in range(self._colums):
-                self._cell_map[i][j] = Cell(coord=Coord(i, j), g=9999, f=9999, last=None, visited=False)
+                self._cell_map[i][j] = Cell(coord=Coord(i, j), g=self.BIG_NUMBER, f=self.BIG_NUMBER, last=None, visited=False)
                 self._wall_map[i][j] = random.choices([0, 1], weights=Map.WEIGHTS)[0] if not Coord(i, j).into_list([start_cell, final_cell]) else 0
 
     @property
@@ -89,17 +90,17 @@ class Map:
         Returns:
             Cell: the cell with the smaller f(x) value
         """
-        less_f = 10000
+        less_f = self.BIG_NUMBER - 1
         less_f_cell = None
         for i, j in np.ndindex(self.map.shape):
             selected_cell = self.get_cell(Coord(i, j))
-            if selected_cell.visited:  # If cell already visited, ignore
+            if selected_cell.visited or self.is_wall(selected_cell.coord):  # If cell already visited or cell is a wall, ignore
                 continue
-            if selected_cell.f <= less_f and not self.is_wall(selected_cell.coord): # If f is less than the previous and cell is not a wall
+            if selected_cell.f <= less_f: # If f is less than the previous
                 less_f = selected_cell.f
                 less_f_cell = selected_cell
         if less_f_cell is None:
-            sys.exit("No maze possible")
+            sys.exit("Sorry. Randomly map generated has not solution")
         return less_f_cell
 
     def recalculate_neight_params(self, coord: Coord):
@@ -117,39 +118,26 @@ class Map:
             if self.is_wall(selected_cell.coord):
                 continue
             # Update neight values
-            g = self.get_cell(coord).g + 0.001
+            g = self.get_cell(coord).g + 0.02
             f = Map._f_calc(selected_cell.coord, self.f_cell, g)
             if f < selected_cell.f:
                 selected_cell.g = g
                 selected_cell.f = f
                 selected_cell.last = coord
     
-    def backtracking(self):
-        """After the cost matrix is filled, this method lets recover the short path"""
-        blocked_path = np.zeros(shape=(self._rows, self._colums), dtype=int)
-        cell = self.get_cell(self.s_cell)
-        last_cell = Cell(Coord(9999, 9999), 9999, 9999, Coord(9999, 9999))
-        path = [(cell.coord.X, cell.coord.Y)]
-        current_f = cell.f
-        while not cell.coord.into_list([self.f_cell]):
-            if last_cell == cell:
-                cell.f = 9999
-                cell = self.get_cell(last_cell.last)
-                path = path[:-2]
-                blocked_path[cell.coord.X][cell.coord.Y] = 1
-            for mov in Map.DIRECTIONS:
-                if (self._rows - 1 < cell.coord.X + mov[0]) or (cell.coord.X + mov[0] < 0) or \
-                   (self._colums - 1 < cell.coord.Y + mov[1]) or (cell.coord.Y + mov[1] < 0):  # Cell exists
-                    continue
-                neight_cell = self.get_cell(Coord(cell.coord.X + mov[0], cell.coord.Y + mov[1]))
-                if neight_cell.f <= current_f and not self.is_wall(neight_cell.coord) \
-                   and neight_cell.visited and blocked_path[neight_cell.coord.X][neight_cell.coord.Y] != 1:
-                    current_f = neight_cell.f
-                    current_neight_cell = neight_cell
-            last_cell = cell
-            cell = current_neight_cell
-            path.append((cell.coord.X, cell.coord.Y))
-        return path
+    def backtracking(self) -> list:
+        """
+        After the cost matrix is filled, this method lets recover the short path
+
+        Returns:
+            list: A List[tuple] with the coordenates containing the shortest solution.
+        """
+        cell = self.get_cell(self.f_cell)
+        path = [cell.coord]
+        while not self.s_cell.into_list(path):
+            path.append(cell.last)
+            cell = self.get_cell(cell.last)
+        return [(coord.X, coord.Y) for coord in path]
             
     def print_matrix(self, path_map: np.ndarray, cmap):
         """
