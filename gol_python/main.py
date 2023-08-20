@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import random
 
 class Cell:
-    ALIVE = 0
-    DEAD = 1
+    ALIVE = 1
+    DEAD = 0
 
     def cell_state(self, state: int):
         return self.ALIVE if state == 0 else self.DEAD
