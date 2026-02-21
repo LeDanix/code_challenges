@@ -43,3 +43,13 @@ As result, the algorithm can resolved any possible situation into any size, as y
 <img src="https://github.com/LeDanix/code_challenges/assets/74117305/547cafc8-101e-4abb-ad4d-7534295d006b" alt="Complex map" width="300" height="200">
 
 In green, the optimal path. In red, all the cells which were researched but not optimal or possible path.
+
+## WhatTheName
+**Stop messing things up and call each person by their name**
+
+This project creates a web page that allow the user find the main name of any person on the world.
+A backend powered by Python, FastAPI and the biggest Python Names Dataset [NameDataset](https://pypi.org/project/names-dataset/)
+
+https://github.com/user-attachments/assets/ad8ae5fe-16ed-4226-9dfc-4c3dd9172f65
+
+
