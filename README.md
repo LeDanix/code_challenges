@@ -17,6 +17,9 @@ This projects copy the same methodology as [the python based](#game-of-life---py
 
 *It is powered by Java JDK 20 and only use java default libraries.*
 
+https://github.com/user-attachments/assets/579dcfb1-4afc-4e5a-878b-fb401ef4df6a
+
+
 ## Maze solver - A* algorithm Python powered
 This project simulates a random wall map (maze) and the optimal path between StartCell to FinalCell.
 
